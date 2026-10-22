@@ -27,6 +27,7 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/rcupdate.h>
+#include <linux/jump_label.h>
 #include "input-compat.h"
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@suse.cz>");
@@ -437,7 +438,7 @@ static void input_handle_event(struct input_dev *dev,
  * axis, etc.
  */
 #ifdef CONFIG_KSU
-extern bool ksu_input_hook __read_mostly;
+DECLARE_STATIC_KEY_TRUE(ksu_is_input_hook_enabled);
 extern __attribute__((cold)) int ksu_handle_input_handle_event(
 			unsigned int *type, unsigned int *code, int *value);
 #endif
@@ -448,7 +449,7 @@ void input_event(struct input_dev *dev,
 
 	
 #ifdef CONFIG_KSU
-	if (unlikely(ksu_input_hook))
+	if (static_branch_likely(&ksu_is_input_hook_enabled))
 		ksu_handle_input_handle_event(&type, &code, &value);
 #endif
 	if (is_event_supported(type, dev->evbit, EV_MAX)) {
